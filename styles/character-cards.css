@@ -1,0 +1,24 @@
+/* ──────────────────────────────────────────────────────────
+   Character Cards — styles Foundry VTT
+   ────────────────────────────────────────────────────────── */
+
+/* Fenêtre : suppression du padding pour que l'iframe
+   occupe tout l'espace disponible */
+.character-card-app .window-content {
+  padding: 0;
+  overflow: hidden;
+  background: #030407;
+}
+
+/* iframe plein format */
+.character-card-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Bouton dans l'en-tête de la fiche */
+.open-character-card i {
+  color: #c8a0ff;
+}
