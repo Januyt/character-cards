@@ -1,16 +1,9 @@
-/* ──────────────────────────────────────────────────────────
-   Character Cards — styles Foundry VTT
-   ────────────────────────────────────────────────────────── */
-
-/* Fenêtre : suppression du padding pour que l'iframe
-   occupe tout l'espace disponible */
-.character-card-app .window-content {
+﻿.character-card-app .window-content {
   padding: 0;
   overflow: hidden;
   background: #030407;
 }
 
-/* iframe plein format */
 .character-card-frame {
   width: 100%;
   height: 100%;
@@ -18,7 +11,65 @@
   display: block;
 }
 
-/* Bouton dans l'en-tête de la fiche */
-.open-character-card i {
-  color: #c8a0ff;
+.open-character-card i  { color: #a78bfa; }
+.share-character-card i { color: #60a5fa; }
+
+.cc-chat-card {
+  background: linear-gradient(135deg, #0f0b1a, #1a1228);
+  border: 1px solid #3b2f6e;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 4px 0;
+  font-family: "Signika", sans-serif;
+}
+
+.cc-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.cc-chat-icon {
+  font-size: 1.3em;
+  color: #a78bfa;
+  flex-shrink: 0;
+}
+
+.cc-chat-name {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #e2d9f3;
+  letter-spacing: 0.02em;
+}
+
+.cc-chat-desc {
+  margin: 0 0 12px 0;
+  font-size: 0.82em;
+  color: #7c6fa0;
+  padding-left: 2px;
+}
+
+.cc-chat-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 0;
+  background: linear-gradient(135deg, #5b21b6, #7c3aed);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: background 0.18s, transform 0.1s;
+}
+
+.cc-chat-btn:hover {
+  background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+  transform: translateY(-1px);
+}
+
+.cc-chat-btn:active {
+  transform: translateY(0);
 }

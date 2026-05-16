@@ -1,40 +1,40 @@
-/**
- * Character Cards — module Foundry VTT
+﻿/**
+ * Character Cards - module Foundry VTT
  *
- * Affiche une carte holographique recto/verso pour chaque acteur
- * dont le nom correspond à un fichier dans modules/character-cards/cards/
+ * - Bouton "Carte"  dans la fiche acteur : ouvre la carte en fenetre
+ * - Bouton "Chat"   dans la fiche acteur : poste un message cliquable
+ * - Les joueurs cliquent sur le message pour ouvrir la carte
  *
  * Pour ajouter une nouvelle carte :
- *   1. Déposez votre fichier HTML dans le dossier cards/
- *   2. Ajoutez une entrée dans CARD_REGISTRY ci-dessous
+ *   1. Deposez le fichier HTML dans cards/
+ *   2. Ajoutez une entree dans CARD_REGISTRY ci-dessous
  */
 
 const MODULE_ID = 'character-cards';
 
-// ─────────────────────────────────────────────────────────────
-//  Registre des cartes
-//  Clé  : nom de l'acteur en minuscules (ou début du nom)
-//  Valeur : nom du fichier HTML dans le dossier cards/
-// ─────────────────────────────────────────────────────────────
+// Registre des cartes
+// Cle   : nom de l'acteur en minuscules (ou debut du nom)
+// Valeur: nom du fichier HTML dans le dossier cards/
 const CARD_REGISTRY = {
   'beckie':     'beckie.html',
   'zal':        'zal.html',
   'zal krindar':'zal.html',
 };
 
-// ─────────────────────────────────────────────────────────────
-//  Initialisation
-// ─────────────────────────────────────────────────────────────
 Hooks.once('init', () => {
-  console.log(`${MODULE_ID} | Character Cards initialisé`);
+  console.log(`${MODULE_ID} | Character Cards initialise`);
 });
 
-// ─────────────────────────────────────────────────────────────
-//  Bouton dans l'en-tête de la fiche d'acteur
-// ─────────────────────────────────────────────────────────────
 Hooks.on('getActorSheetHeaderButtons', (sheet, buttons) => {
   const cardFile = findCard(sheet.actor.name);
   if (!cardFile) return;
+
+  buttons.unshift({
+    label: 'Chat',
+    class: 'share-character-card',
+    icon: 'fas fa-share-nodes',
+    onclick: () => shareCardToChat(sheet.actor, cardFile),
+  });
 
   buttons.unshift({
     label: 'Carte',
@@ -44,44 +44,53 @@ Hooks.on('getActorSheetHeaderButtons', (sheet, buttons) => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────
-//  Recherche de carte par nom d'acteur
-// ─────────────────────────────────────────────────────────────
 function findCard(actorName) {
   const name = actorName.toLowerCase().trim();
-
-  // Correspondance exacte
   if (CARD_REGISTRY[name]) return CARD_REGISTRY[name];
-
-  // Correspondance sur le premier mot (prénom)
   const firstName = name.split(' ')[0];
   if (CARD_REGISTRY[firstName]) return CARD_REGISTRY[firstName];
-
-  // Correspondance partielle : on cherche si le nom commence par une clé connue
   for (const [key, file] of Object.entries(CARD_REGISTRY)) {
     if (name.startsWith(key) || key.startsWith(firstName)) return file;
   }
-
   return null;
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Ouverture de la fenêtre carte
-// ─────────────────────────────────────────────────────────────
 function openCard(actorName, cardFile) {
-  // Une seule fenêtre par acteur à la fois
   const existingId = `character-card-${cardFile.replace('.html', '')}`;
   const existing = Object.values(ui.windows).find(w => w.id === existingId);
-  if (existing) {
-    existing.bringToTop();
-    return;
-  }
+  if (existing) { existing.bringToTop(); return; }
   new CharacterCardApp(actorName, cardFile, existingId).render(true);
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Application Foundry pour l'affichage de la carte
-// ─────────────────────────────────────────────────────────────
+async function shareCardToChat(actor, cardFile) {
+  const content = `
+<div class="cc-chat-card" data-card-file="${cardFile}" data-actor-name="${actor.name}">
+  <div class="cc-chat-header">
+    <i class="fas fa-address-card cc-chat-icon"></i>
+    <span class="cc-chat-name">${actor.name}</span>
+  </div>
+  <p class="cc-chat-desc">Carte de personnage - cliquez pour l'afficher</p>
+  <button type="button" class="cc-chat-btn">
+    <i class="fas fa-eye"></i>&nbsp; Voir la carte
+  </button>
+</div>`;
+
+  await ChatMessage.create({
+    content,
+    speaker: { alias: actor.name },
+    flags: { [MODULE_ID]: { cardFile, actorName: actor.name } },
+  });
+}
+
+Hooks.on('renderChatMessage', (_message, html) => {
+  html.find('.cc-chat-btn').on('click', function () {
+    const wrapper   = $(this).closest('.cc-chat-card');
+    const cardFile  = wrapper.data('card-file');
+    const actorName = wrapper.data('actor-name');
+    if (cardFile && actorName) openCard(actorName, cardFile);
+  });
+});
+
 class CharacterCardApp extends Application {
   constructor(actorName, cardFile, windowId) {
     super();
@@ -100,9 +109,8 @@ class CharacterCardApp extends Application {
   }
 
   get id()    { return this._windowId; }
-  get title() { return `🃏 ${this._actorName}`; }
+  get title() { return `ðŸƒ ${this._actorName}`; }
 
-  /** Rendu direct : une iframe qui charge le fichier HTML de la carte */
   async _renderInner(_data) {
     const url = `modules/${MODULE_ID}/cards/${this._cardFile}`;
     return $(`<iframe src="${url}" class="character-card-frame"></iframe>`);
