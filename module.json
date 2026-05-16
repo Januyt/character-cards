@@ -1,26 +1,26 @@
-{
-  "id": "character-cards",
-  "title": "Character Cards",
-  "description": "Affiche une carte recto/verso holographique pour chaque acteur. Un bouton apparaît dans la fiche du personnage lorsqu'une carte existe.",
-  "version": "1.0.0",
-  "compatibility": {
-    "minimum": "11",
-    "verified": "12",
-    "maximum": "12"
-  },
-  "authors": [
-    {
-      "name": "Eric"
-    }
-  ],
-  "scripts": [
-    "scripts/character-cards.js"
-  ],
-  "styles": [
-    "styles/character-cards.css"
-  ],
-  "url": "https://github.com/Januyt/character-cards",
-  "manifest": "https://raw.githubusercontent.com/Januyt/character-cards/main/module.json",
-  "download": "https://github.com/Januyt/character-cards/archive/refs/heads/main.zip",
-  "readme": "https://github.com/Januyt/character-cards/blob/main/README.md"
+﻿{
+    "id":  "character-cards",
+    "title":  "Character Cards",
+    "description":  "Affiche une carte recto/verso holographique pour chaque acteur. Un bouton apparaÃ®t dans la fiche du personnage lorsqu\u0027une carte existe.",
+    "version":  "1.0.1",
+    "compatibility":  {
+                          "minimum":  "11",
+                          "verified":  "12",
+                          "maximum":  "12"
+                      },
+    "authors":  [
+                    {
+                        "name":  "Eric"
+                    }
+                ],
+    "scripts":  [
+                    "scripts/character-cards.js"
+                ],
+    "styles":  [
+                   "styles/character-cards.css"
+               ],
+    "url":  "https://github.com/Januyt/character-cards",
+    "manifest":  "https://raw.githubusercontent.com/Januyt/character-cards/main/module.json",
+    "download":  "https://github.com/Januyt/character-cards/archive/refs/heads/main.zip",
+    "readme":  "https://github.com/Januyt/character-cards/blob/main/README.md"
 }

@@ -12,9 +12,6 @@
 
 const MODULE_ID = 'character-cards';
 
-// Registre des cartes
-// Cle   : nom de l'acteur en minuscules (ou debut du nom)
-// Valeur: nom du fichier HTML dans le dossier cards/
 const CARD_REGISTRY = {
   'beckie':     'beckie.html',
   'zal':        'zal.html',
