@@ -1,15 +1,3 @@
-﻿/**
- * Character Cards - module Foundry VTT
- *
- * - Bouton "Carte"  dans la fiche acteur : ouvre la carte en fenetre
- * - Bouton "Chat"   dans la fiche acteur : poste un message cliquable
- * - Les joueurs cliquent sur le message pour ouvrir la carte
- *
- * Pour ajouter une nouvelle carte :
- *   1. Deposez le fichier HTML dans cards/
- *   2. Ajoutez une entree dans CARD_REGISTRY ci-dessous
- */
-
 const MODULE_ID = 'character-cards';
 
 const CARD_REGISTRY = {
@@ -71,7 +59,6 @@ async function shareCardToChat(actor, cardFile) {
     <i class="fas fa-eye"></i>&nbsp; Voir la carte
   </button>
 </div>`;
-
   await ChatMessage.create({
     content,
     speaker: { alias: actor.name },
@@ -106,7 +93,7 @@ class CharacterCardApp extends Application {
   }
 
   get id()    { return this._windowId; }
-  get title() { return `ðŸƒ ${this._actorName}`; }
+  get title() { return '\U0001f0cf ' + this._actorName; }
 
   async _renderInner(_data) {
     const url = `modules/${MODULE_ID}/cards/${this._cardFile}`;
