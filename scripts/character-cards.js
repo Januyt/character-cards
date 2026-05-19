@@ -1,9 +1,12 @@
 const MODULE_ID = 'character-cards';
 
 const CARD_REGISTRY = {
-  'beckie':     'beckie.html',
-  'zal':        'zal.html',
-  'zal krindar':'zal.html',
+  'beckie':        'beckie.html',
+  'zal':           'zal.html',
+  'zal krindar':   'zal.html',
+  'arfred':        'arfred.html',
+  'ex : zal krindar': 'arfred.html',
+  'zal le mage':   'arfred.html',
 };
 
 Hooks.once('init', () => {
