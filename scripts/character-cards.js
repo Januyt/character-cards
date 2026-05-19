@@ -1,20 +1,14 @@
 /**
- * Character Cards — module Foundry VTT v2
+ * Character Cards — module Foundry VTT v2.1
  *
- * Nouveautés :
- *   - Registre des cartes stocké dans les réglages du module (game.settings)
- *   - Gestionnaire de cartes intégré à Foundry (aucun GitHub requis pour ajouter des cartes)
- *   - Images converties en HTML côté navigateur via FileReader
- *   - Fichiers uploadés via FilePicker.upload dans character-cards/cards/
- *   - Flip recto/verso fonctionnel pour toutes les cartes à deux faces
+ * Fix The Forge : les images (PNG/JPG) sont uploadées sur le serveur,
+ * le HTML est généré à la volée et affiché via blob URL → pas de téléchargement forcé.
+ * Le verso fonctionne pour toutes les cartes ajoutées via le gestionnaire.
  */
 
 const MODULE_ID = 'character-cards';
 
-// ─────────────────────────────────────────────────────────────
-//  Cartes existantes (dans le dossier du module GitHub)
-//  Les nouvelles cartes vont dans character-cards/cards/ (données Foundry)
-// ─────────────────────────────────────────────────────────────
+// Cartes legacy (fichiers HTML dans le module GitHub)
 const LEGACY_CARDS = {
   'beckie':      'modules/character-cards/cards/beckie.html',
   'zal':         'modules/character-cards/cards/zal.html',
@@ -22,11 +16,12 @@ const LEGACY_CARDS = {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  Initialisation
+//  Settings
 // ─────────────────────────────────────────────────────────────
 Hooks.once('init', () => {
-  console.log(`${MODULE_ID} | Character Cards v2 initialisé`);
+  console.log(`${MODULE_ID} | Character Cards v2.1 initialisé`);
 
+  // Registre : { key: string } pour legacy, { key: { recto, verso } } pour nouvelles cartes
   game.settings.register(MODULE_ID, 'cardRegistry', {
     name: 'Registre des cartes',
     scope: 'world',
@@ -46,7 +41,7 @@ Hooks.once('init', () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-//  Registre : fusion LEGACY + settings
+//  Registre
 // ─────────────────────────────────────────────────────────────
 function getRegistry() {
   const stored = game.settings.get(MODULE_ID, 'cardRegistry') || {};
@@ -59,51 +54,66 @@ function findCard(actorName) {
   if (registry[name]) return registry[name];
   const firstName = name.split(' ')[0];
   if (registry[firstName]) return registry[firstName];
-  for (const [key, path] of Object.entries(registry)) {
-    if (name.startsWith(key) || key.startsWith(firstName)) return path;
+  for (const [key, entry] of Object.entries(registry)) {
+    if (name.startsWith(key) || key.startsWith(firstName)) return entry;
   }
   return null;
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Boutons dans l'en-tête de la fiche d'acteur
+//  Boutons fiche acteur
 // ─────────────────────────────────────────────────────────────
 Hooks.on('getActorSheetHeaderButtons', (sheet, buttons) => {
-  const cardPath = findCard(sheet.actor.name);
-  if (!cardPath) return;
+  const entry = findCard(sheet.actor.name);
+  if (!entry) return;
 
   buttons.unshift({
     label: 'Chat',
     class: 'share-character-card',
     icon: 'fas fa-share-nodes',
-    onclick: () => shareCardToChat(sheet.actor, cardPath),
+    onclick: () => shareCardToChat(sheet.actor),
   });
 
   buttons.unshift({
     label: 'Carte',
     class: 'open-character-card',
     icon: 'fas fa-address-card',
-    onclick: () => openCard(sheet.actor.name, cardPath),
+    onclick: () => openCard(sheet.actor.name, entry),
   });
 });
 
 // ─────────────────────────────────────────────────────────────
-//  Ouverture de la fenêtre carte
+//  Ouverture de la carte
+//  - entry string  → chemin HTML legacy (module GitHub)
+//  - entry object  → { recto, verso } → HTML généré + blob URL
 // ─────────────────────────────────────────────────────────────
-function openCard(actorName, cardPath) {
-  const cardId   = cardPath.split('/').pop().replace('.html', '');
+async function openCard(actorName, entry) {
+  const cardId   = actorName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const windowId = `character-card-${cardId}`;
   const existing = Object.values(ui.windows).find(w => w.id === windowId);
   if (existing) { existing.bringToTop(); return; }
-  new CharacterCardApp(actorName, cardPath, windowId).render(true);
+
+  let srcUrl, blobUrl = null;
+
+  if (typeof entry === 'string') {
+    srcUrl = entry;
+  } else {
+    const html = _generateCardHtml(actorName, entry.recto, entry.verso || null);
+    const blob  = new Blob([html], { type: 'text/html' });
+    blobUrl = URL.createObjectURL(blob);
+    srcUrl  = blobUrl;
+  }
+
+  new CharacterCardApp(actorName, srcUrl, blobUrl, windowId).render(true);
 }
 
 // ─────────────────────────────────────────────────────────────
 //  Partage dans le chat
 // ─────────────────────────────────────────────────────────────
-async function shareCardToChat(actor, cardPath) {
-  const content = `
-<div class="cc-chat-card" data-card-path="${cardPath}" data-actor-name="${actor.name}">
+async function shareCardToChat(actor) {
+  const safeName = actor.name.replace(/"/g, '&quot;');
+  const content  = `
+<div class="cc-chat-card" data-actor-name="${safeName}">
   <div class="cc-chat-header">
     <i class="fas fa-address-card cc-chat-icon"></i>
     <span class="cc-chat-name">${actor.name}</span>
@@ -116,16 +126,16 @@ async function shareCardToChat(actor, cardPath) {
   await ChatMessage.create({
     content,
     speaker: { alias: actor.name },
-    flags: { [MODULE_ID]: { cardPath, actorName: actor.name } },
+    flags: { [MODULE_ID]: { actorName: actor.name } },
   });
 }
 
 Hooks.on('renderChatMessage', (_message, html) => {
   html.find('.cc-chat-btn').on('click', function () {
-    const wrapper   = $(this).closest('.cc-chat-card');
-    const cardPath  = wrapper.data('card-path');
-    const actorName = wrapper.data('actor-name');
-    if (cardPath && actorName) openCard(actorName, cardPath);
+    const actorName = $(this).closest('.cc-chat-card').data('actor-name');
+    if (!actorName) return;
+    const entry = findCard(actorName);
+    if (entry) openCard(actorName, entry);
   });
 });
 
@@ -133,10 +143,11 @@ Hooks.on('renderChatMessage', (_message, html) => {
 //  Application : fenêtre d'affichage de la carte
 // ─────────────────────────────────────────────────────────────
 class CharacterCardApp extends Application {
-  constructor(actorName, cardPath, windowId) {
+  constructor(actorName, srcUrl, blobUrl, windowId) {
     super();
     this._actorName = actorName;
-    this._cardPath  = cardPath;
+    this._srcUrl    = srcUrl;
+    this._blobUrl   = blobUrl;
     this._windowId  = windowId;
   }
 
@@ -153,12 +164,17 @@ class CharacterCardApp extends Application {
   get title() { return '🎴 ' + this._actorName; }
 
   async _renderInner(_data) {
-    return $(`<iframe src="${this._cardPath}" class="character-card-frame"></iframe>`);
+    return $(`<iframe src="${this._srcUrl}" class="character-card-frame"></iframe>`);
+  }
+
+  async close(...args) {
+    if (this._blobUrl) URL.revokeObjectURL(this._blobUrl);
+    return super.close(...args);
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Gestionnaire de cartes (accessible depuis les réglages)
+//  Gestionnaire de cartes
 // ─────────────────────────────────────────────────────────────
 class CardManagerApp extends FormApplication {
   constructor(...args) {
@@ -178,19 +194,19 @@ class CardManagerApp extends FormApplication {
   }
 
   getData() {
-    return {
-      entries: Object.entries(game.settings.get(MODULE_ID, 'cardRegistry') || {}),
-    };
+    return { entries: Object.entries(game.settings.get(MODULE_ID, 'cardRegistry') || {}) };
   }
 
   async _renderInner(data) {
     const entries = data.entries || [];
 
-    const rows = entries.map(([key, path]) => {
-      const filename = path.split('/').pop();
+    const rows = entries.map(([key, entry]) => {
+      const label = typeof entry === 'string'
+        ? entry.split('/').pop()
+        : (entry.verso ? 'recto + verso' : 'recto seul');
       return `<tr>
         <td style="padding:5px 8px;color:#e2d9f3">${key}</td>
-        <td style="padding:5px 8px;color:#7c6fa0;font-size:.82em">${filename}</td>
+        <td style="padding:5px 8px;color:#7c6fa0;font-size:.82em">${label}</td>
         <td style="padding:5px 8px;text-align:right">
           <button type="button" class="cc-del-btn" data-key="${key}"
             style="background:#3b1f1f;border:none;color:#f87171;border-radius:4px;
@@ -276,31 +292,29 @@ class CardManagerApp extends FormApplication {
   activateListeners(html) {
     super.activateListeners(html);
 
-    // Délégation via this.element (résistant aux re-renders)
     this.element.off('.cc-manager');
 
     this.element.on('change.cc-manager', '#cc-recto-file', ev => {
       this._rectoFile = ev.target.files[0] || null;
-      const name = this._rectoFile ? this._rectoFile.name : 'Aucun fichier choisi';
+      const name  = this._rectoFile ? this._rectoFile.name : 'Aucun fichier choisi';
       const color = this._rectoFile ? '#e2d9f3' : '#6b7280';
       this.element.find('#cc-recto-name').text(name).css('color', color);
     });
 
     this.element.on('change.cc-manager', '#cc-verso-file', ev => {
       this._versoFile = ev.target.files[0] || null;
-      const name = this._versoFile ? this._versoFile.name : 'Aucun fichier choisi';
+      const name  = this._versoFile ? this._versoFile.name : 'Aucun fichier choisi';
       const color = this._versoFile ? '#e2d9f3' : '#6b7280';
       this.element.find('#cc-verso-name').text(name).css('color', color);
     });
 
-    html.find('#cc-add-btn').on('click', () => this._addCard(html));
+    html.find('#cc-add-btn').on('click', () => this._addCard());
 
     html.find('.cc-del-btn').on('click', async ev => {
       const key = ev.currentTarget.dataset.key;
       const ok  = await Dialog.confirm({
         title:   'Supprimer la carte',
-        content: `<p>Retirer <strong>${key}</strong> du registre ?<br>
-                  <small style="color:#7c6fa0">(Le fichier HTML reste sur le serveur.)</small></p>`,
+        content: `<p>Retirer <strong>${key}</strong> du registre ?</p>`,
       });
       if (!ok) return;
       const reg = game.settings.get(MODULE_ID, 'cardRegistry') || {};
@@ -310,13 +324,13 @@ class CardManagerApp extends FormApplication {
     });
   }
 
-  async _addCard(html) {
+  async _addCard() {
     const status     = this.element.find('#cc-status');
     const actorName  = this.element.find('#cc-actor-name').val().trim();
     const aliasesRaw = this.element.find('#cc-aliases').val().trim();
 
     if (!this._rectoFile) {
-      status.html('<span style="color:#f87171">Choisissez une image pour le recto.</span>');
+      status.html("<span style='color:#f87171'>Choisissez une image pour le recto.</span>");
       return;
     }
     if (!actorName) {
@@ -325,18 +339,10 @@ class CardManagerApp extends FormApplication {
     }
 
     this.element.find('#cc-add-btn').prop('disabled', true);
-    status.html('<span style="color:#a78bfa"><i class="fas fa-spinner fa-spin"></i> Conversion en cours…</span>');
+    status.html('<span style="color:#a78bfa"><i class="fas fa-spinner fa-spin"></i> Upload en cours…</span>');
 
     try {
-      const rectoUrl = await _fileToDataUrl(this._rectoFile);
-      const versoUrl = this._versoFile ? await _fileToDataUrl(this._versoFile) : null;
-
-      status.html('<span style="color:#a78bfa"><i class="fas fa-spinner fa-spin"></i> Upload en cours…</span>');
-
-      const baseName     = actorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const filename     = baseName + '.html';
-      const htmlContent  = _generateCardHtml(actorName, rectoUrl, versoUrl);
-      const uploadedPath = await _uploadCard(filename, htmlContent);
+      const entry = await _uploadImages(actorName, this._rectoFile, this._versoFile);
 
       const reg  = game.settings.get(MODULE_ID, 'cardRegistry') || {};
       const keys = [actorName.toLowerCase().trim()];
@@ -348,12 +354,12 @@ class CardManagerApp extends FormApplication {
           if (k && !keys.includes(k)) keys.push(k);
         });
       }
-      keys.forEach(k => { reg[k] = uploadedPath; });
+      keys.forEach(k => { reg[k] = entry; });
       await game.settings.set(MODULE_ID, 'cardRegistry', reg);
 
       this._rectoFile = null;
       this._versoFile = null;
-      status.html('<span style="color:#34d399"><i class="fas fa-check"></i> Carte ajoutée avec succès !</span>');
+      status.html('<span style="color:#34d399"><i class="fas fa-check"></i> Carte ajoutée !</span>');
       setTimeout(() => this.render(), 1400);
 
     } catch (err) {
@@ -364,6 +370,11 @@ class CardManagerApp extends FormApplication {
     }
   }
 
+  async close(...args) {
+    this.element.off('.cc-manager');
+    return super.close(...args);
+  }
+
   async _updateObject() {}
 }
 
@@ -371,22 +382,26 @@ class CardManagerApp extends FormApplication {
 //  Utilitaires
 // ─────────────────────────────────────────────────────────────
 
-function _fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Lecture du fichier échouée'));
-    reader.readAsDataURL(file);
-  });
-}
+async function _uploadImages(actorName, rectoFile, versoFile) {
+  const base   = actorName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const folder = 'character-cards/images';
 
-async function _uploadCard(filename, htmlContent) {
-  const blob = new Blob([htmlContent], { type: 'text/html' });
-  const file = new File([blob], filename, { type: 'text/html' });
-  try { await FilePicker.createDirectory('data', 'character-cards'); }       catch (_) {}
-  try { await FilePicker.createDirectory('data', 'character-cards/cards'); } catch (_) {}
-  const result = await FilePicker.upload('data', 'character-cards/cards', file, {});
-  return result.path;
+  try { await FilePicker.createDirectory('data', 'character-cards'); }  catch (_) {}
+  try { await FilePicker.createDirectory('data', folder); }              catch (_) {}
+
+  const ext1       = rectoFile.name.split('.').pop();
+  const rectoNamed = new File([rectoFile], base + '-recto.' + ext1, { type: rectoFile.type });
+  const rectoRes   = await FilePicker.upload('data', folder, rectoNamed, {});
+
+  let versoUrl = null;
+  if (versoFile) {
+    const ext2       = versoFile.name.split('.').pop();
+    const versoNamed = new File([versoFile], base + '-verso.' + ext2, { type: versoFile.type });
+    const versoRes   = await FilePicker.upload('data', folder, versoNamed, {});
+    versoUrl = versoRes.path;
+  }
+
+  return { recto: rectoRes.path, verso: versoUrl };
 }
 
 function _generateCardHtml(actorName, rectoUrl, versoUrl) {
