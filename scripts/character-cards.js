@@ -305,7 +305,7 @@ class CardManagerApp extends FormApplication {
       return;
     }
     if (!actorName) {
-      status.html('<span style="color:#f87171">Entrez le nom de l'acteur.</span>');
+      status.html("<span style='color:#f87171'>Entrez le nom de l'acteur.</span>");
       return;
     }
 
