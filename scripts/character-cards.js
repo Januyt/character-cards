@@ -213,26 +213,36 @@ class CardManagerApp extends FormApplication {
     </h3>
 
     <label style="color:#9ca3af;font-size:.82em;display:block;margin-bottom:3px">Recto (face avant) *</label>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="cc-recto-name" type="text" readonly placeholder="Aucun fichier choisi"
-        style="flex:1;background:#0d0b14;border:1px solid #2d2440;color:#e2d9f3;
-               border-radius:6px;padding:5px 10px;font-size:.88em"/>
-      <button type="button" id="cc-recto-btn"
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <span id="cc-recto-name"
+        style="flex:1;background:#0d0b14;border:1px solid #2d2440;color:#6b7280;
+               border-radius:6px;padding:5px 10px;font-size:.88em;display:block;
+               overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        Aucun fichier choisi
+      </span>
+      <label for="cc-recto-file"
         style="background:#2d2440;border:none;color:#a78bfa;border-radius:6px;
-               padding:5px 14px;cursor:pointer;font-size:.88em;white-space:nowrap">Choisir</button>
+               padding:5px 14px;cursor:pointer;font-size:.88em;white-space:nowrap;
+               display:inline-block;user-select:none">Choisir</label>
     </div>
-    <input id="cc-recto-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none"/>
+    <input id="cc-recto-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+      style="position:fixed;top:-9999px;left:-9999px;opacity:0"/>
 
     <label style="color:#9ca3af;font-size:.82em;display:block;margin-bottom:3px">Verso (face arrière, optionnel)</label>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <input id="cc-verso-name" type="text" readonly placeholder="Aucun fichier choisi"
-        style="flex:1;background:#0d0b14;border:1px solid #2d2440;color:#e2d9f3;
-               border-radius:6px;padding:5px 10px;font-size:.88em"/>
-      <button type="button" id="cc-verso-btn"
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <span id="cc-verso-name"
+        style="flex:1;background:#0d0b14;border:1px solid #2d2440;color:#6b7280;
+               border-radius:6px;padding:5px 10px;font-size:.88em;display:block;
+               overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        Aucun fichier choisi
+      </span>
+      <label for="cc-verso-file"
         style="background:#2d2440;border:none;color:#a78bfa;border-radius:6px;
-               padding:5px 14px;cursor:pointer;font-size:.88em;white-space:nowrap">Choisir</button>
+               padding:5px 14px;cursor:pointer;font-size:.88em;white-space:nowrap;
+               display:inline-block;user-select:none">Choisir</label>
     </div>
-    <input id="cc-verso-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none"/>
+    <input id="cc-verso-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+      style="position:fixed;top:-9999px;left:-9999px;opacity:0"/>
 
     <label style="color:#9ca3af;font-size:.82em;display:block;margin-bottom:3px">Nom de l'acteur dans Foundry *</label>
     <input id="cc-actor-name" type="text" placeholder="ex : Arfred"
@@ -266,16 +276,21 @@ class CardManagerApp extends FormApplication {
   activateListeners(html) {
     super.activateListeners(html);
 
-    html.find('#cc-recto-btn').on('click', () => html.find('#cc-recto-file')[0].click());
-    html.find('#cc-verso-btn').on('click', () => html.find('#cc-verso-file')[0].click());
+    // Délégation via this.element (résistant aux re-renders)
+    this.element.off('.cc-manager');
 
-    html.find('#cc-recto-file').on('change', ev => {
+    this.element.on('change.cc-manager', '#cc-recto-file', ev => {
       this._rectoFile = ev.target.files[0] || null;
-      html.find('#cc-recto-name').val(this._rectoFile ? this._rectoFile.name : '');
+      const name = this._rectoFile ? this._rectoFile.name : 'Aucun fichier choisi';
+      const color = this._rectoFile ? '#e2d9f3' : '#6b7280';
+      this.element.find('#cc-recto-name').text(name).css('color', color);
     });
-    html.find('#cc-verso-file').on('change', ev => {
+
+    this.element.on('change.cc-manager', '#cc-verso-file', ev => {
       this._versoFile = ev.target.files[0] || null;
-      html.find('#cc-verso-name').val(this._versoFile ? this._versoFile.name : '');
+      const name = this._versoFile ? this._versoFile.name : 'Aucun fichier choisi';
+      const color = this._versoFile ? '#e2d9f3' : '#6b7280';
+      this.element.find('#cc-verso-name').text(name).css('color', color);
     });
 
     html.find('#cc-add-btn').on('click', () => this._addCard(html));
@@ -296,9 +311,9 @@ class CardManagerApp extends FormApplication {
   }
 
   async _addCard(html) {
-    const status     = html.find('#cc-status');
-    const actorName  = html.find('#cc-actor-name').val().trim();
-    const aliasesRaw = html.find('#cc-aliases').val().trim();
+    const status     = this.element.find('#cc-status');
+    const actorName  = this.element.find('#cc-actor-name').val().trim();
+    const aliasesRaw = this.element.find('#cc-aliases').val().trim();
 
     if (!this._rectoFile) {
       status.html('<span style="color:#f87171">Choisissez une image pour le recto.</span>');
@@ -309,7 +324,7 @@ class CardManagerApp extends FormApplication {
       return;
     }
 
-    html.find('#cc-add-btn').prop('disabled', true);
+    this.element.find('#cc-add-btn').prop('disabled', true);
     status.html('<span style="color:#a78bfa"><i class="fas fa-spinner fa-spin"></i> Conversion en cours…</span>');
 
     try {
@@ -345,7 +360,7 @@ class CardManagerApp extends FormApplication {
       console.error(`${MODULE_ID} | Erreur :`, err);
       status.html('<span style="color:#f87171">Erreur : ' + err.message + '</span>');
     } finally {
-      html.find('#cc-add-btn').prop('disabled', false);
+      this.element.find('#cc-add-btn').prop('disabled', false);
     }
   }
 
