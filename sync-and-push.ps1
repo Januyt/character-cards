@@ -23,7 +23,8 @@ $json = Get-Content $moduleJsonPath -Raw | ConvertFrom-Json
 $parts = @($json.version.Split("."))
 while ($parts.Count -lt 3) { $parts += "0" }
 $json.version = "$($parts[0]).$($parts[1]).$([int]$parts[2] + 1)"
-$json | ConvertTo-Json -Depth 20 | Set-Content $moduleJsonPath -Encoding UTF8
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($moduleJsonPath, ($json | ConvertTo-Json -Depth 20), $utf8NoBom)
 Write-Host "  OK  module.json -> $($json.version)" -ForegroundColor Green
 
 git config --global --add safe.directory ($moduleDir -replace "\\", "/") | Out-Null
